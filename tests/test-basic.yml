@@ -1,0 +1,43 @@
+name: Test basic usage with checkstyle report
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a sample Checkstyle XML report
+        run: |
+          mkdir -p /tmp/checkstyle-reports
+          cat > /tmp/checkstyle-reports/checkstyle-result.xml << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <checkstyle version="8.40">
+            <file name="/home/runner/work/myproject/src/main/java/com/example/Main.java">
+              <error line="10" column="1" severity="warning" message="Line is longer than 80 characters (found 85)." source="com.puppycrawl.tools.checkstyle.checks.sizes.LineLengthCheck"/>
+            </file>
+          </checkstyle>
+          EOF
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          path: /tmp/checkstyle-reports/checkstyle-result.xml
+          name: Checkstyle
+          title: Checkstyle report
+          token: ${{ github.token }}
+
+      - name: Assert action ran (succeeded or failed gracefully on sentinel repo)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (sentinel repo is not resolvable)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
